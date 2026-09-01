@@ -1,0 +1,166 @@
+[24bcs049@mepcolinux ex2.l]$cat dfa.c
+#include <stdio.h>
+#include <string.h>
+#include <stdbool.h>
+
+#define MAX_STATES 20
+#define MAX_SYMBOLS 10
+#define MAX_STRING 100
+
+// Helper function to find the column index of a symbol
+int getSymbolIndex(char c, char symbols[], int num_symbols) {
+    for (int i = 0; i < num_symbols; i++) {
+        if (symbols[i] == c) {
+            return i;
+        }
+    }
+    return -1; // Symbol not found
+}
+
+// Helper function to check if a state is an accepting/end state
+bool isAcceptingState(int state, int end_states[], int num_end) {
+    for (int i = 0; i < num_end; i++) {
+        if (end_states[i] == state) {
+            return true;
+        }
+    }
+    return false;
+}
+
+int main() {
+    int num_states, num_symbols, num_end;
+    int start_state;
+    char symbols[MAX_SYMBOLS];
+    int end_states[MAX_STATES];
+    int transition_table[MAX_STATES][MAX_SYMBOLS];
+    char input_string[MAX_STRING];
+
+    // 1. Get DFA specifications
+    printf("Enter total number of states: ");
+    scanf("%d", &num_states);
+
+    printf("Enter number of input symbols: ");
+    scanf("%d", &num_symbols);
+
+    printf("Enter the symbols (separated by space, e.g., a b): ");
+    for (int i = 0; i < num_symbols; i++) {
+        scanf(" %c", &symbols[i]);
+    }
+
+    printf("Enter start state (integer index, e.g., 0): ");
+    scanf("%d", &start_state);
+
+    printf("Enter number of final/end states: ");
+    scanf("%d", &num_end);
+
+    printf("Enter the final/end states: ");
+    for (int i = 0; i < num_end; i++) {
+        scanf("%d", &end_states[i]);
+    }
+
+    // 2. Define the Transitions as an array block
+    printf("\n--- Define Transition Rules ---\n");
+    printf("Enter the next states for the transition table row by row.\n");
+    printf("Use -1 if a state has no transition for a symbol.\n");
+    printf("Each row corresponds to a state (0 to %d).\n", num_states - 1);
+    printf("Provide %d state integers per row, separated by spaces:\n\n", num_symbols);
+
+    for (int j = 0; j < num_symbols; j++) {
+        printf("\t%c", symbols[j]);
+    }
+    printf("\n-------------------------\n");
+
+    for (int i = 0; i < num_states; i++) {
+        printf("State %d: ", i);
+        for (int j = 0; j < num_symbols; j++) {
+            scanf("%d", &transition_table[i][j]);
+        }
+    }
+
+    // 3. Print the Transition Table
+    printf("\n--- DFA Transition Table ---\n");
+    printf("State\t| ");
+    for (int j = 0; j < num_symbols; j++) {
+        printf("%c\t", symbols[j]);
+    }
+    printf("\n-------------------------\n");
+    for (int i = 0; i < num_states; i++) {
+        printf("%d\t| ", i);
+        for (int j = 0; j < num_symbols; j++) {
+            if (transition_table[i][j] == -1) {
+                printf("-\t");
+            } else {
+                printf("%d\t", transition_table[i][j]);
+            }
+        }
+        printf("\n");
+    }
+
+    // 4. Get input string infinitely until '0' is entered
+    while (1) {
+        printf("\nEnter the input string to validate (or enter '0' to exit): ");
+        scanf("%s", input_string);
+
+        if (strcmp(input_string, "0") == 0) {
+            printf("Exiting program.\n");
+            break;
+        }
+
+        int current_state = start_state;
+        char current_token[MAX_STRING] = "";
+        int token_idx = 0;
+
+        printf("\n--- Token Processing Log ---\n");
+
+        for (int i = 0; input_string[i] != '\0'; i++) {
+            char ch = input_string[i];
+            int sym_idx = getSymbolIndex(ch, symbols, num_symbols);
+
+            // Check if symbol is entirely invalid OR if there is a missing transition (-1)
+            if (sym_idx == -1 || transition_table[current_state][sym_idx] == -1) {
+
+                // If we accumulated valid characters before this error, evaluate them first
+                if (token_idx > 0) {
+                    current_token[token_idx] = '\0';
+                    if (isAcceptingState(current_state, end_states, num_end)) {
+                        printf("Token [ %s ] -> RECOGNISED (Ended in Accepting State %d)\n", current_token, current_state);
+                    } else {
+                        printf("Token [ %s ] -> NOT RECOGNISED (Ended in Non-Accepting State %d)\n", current_token, current_state);
+                    }
+                    // Reset token accumulator and state back to start
+                    token_idx = 0;
+                    current_state = start_state;
+                }
+
+                // Handle the invalid character itself
+                if (sym_idx == -1) {
+                    printf("Token [ %c ] -> NOT RECOGNISED (Error: Symbol not in alphabet)\n", ch);
+                } else {
+                    printf("Token [ %c ] -> NOT RECOGNISED (Error: No transition from State %d)\n", ch, current_state);
+                }
+
+                // Reset state to process remaining symbols
+                current_state = start_state;
+
+            } else {
+                // If it's a valid path transition, accumulate character into the current token
+                current_token[token_idx++] = ch;
+                current_state = transition_table[current_state][sym_idx];
+            }
+        }
+
+        // Print final status for any remaining unprinted characters at the end of the string
+        if (token_idx > 0) {
+            current_token[token_idx] = '\0';
+            if (isAcceptingState(current_state, end_states, num_end)) {
+                printf("Token [ %s ] -> RECOGNISED (Ended in Accepting State %d)\n", current_token, current_state);
+            } else {
+                printf("Token [ %s ] -> NOT RECOGNISED (Ended in Non-Accepting State %d)\n", current_token, current_state);
+            }
+        }
+        printf("----------------------------\n");
+    }
+
+    return 0;
+}
+[
