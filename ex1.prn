@@ -1,0 +1,316 @@
+[24bcs049@mepcolinux ex1.l]$cat ex1.prn
+Script started on Thu Aug 13 11:37:54 2026
+[24bcs049@mepcolinux ex1.l]$cat date.l
+%{
+#include <stdio.h>
+#include <stdlib.h>
+
+char *month[] = {
+    "jan", "feb", "mar", "apr", "may", "jun",
+    "jul", "aug", "sep", "oct", "nov", "dec"
+};
+%}
+
+%%
+[0-3][0-9]-[0-1][0-9]-[0-9][0-9][0-9][0-9]   {
+    int d, m, y;
+
+    // Efficiently extracts integers directly from yytext without manual substring copies
+    sscanf(yytext, "%2d-%2d-%4d", &d, &m, &y);
+
+    if (m >= 1 && m <= 12)
+    {
+        // Outputs exactly as DD,mon,YYYY
+        printf("%02d,%s,%04d\n", d, month[m - 1], y);
+    }
+    else
+    {
+        printf("Invalid date: %s\n", yytext);
+    }
+}
+
+.|\n     ECHO;
+%%
+
+int yywrap()
+{
+    return 1;
+}
+
+int main()
+{
+    yyin = fopen("date.txt", "r");
+    if (yyin == NULL)
+    {
+        printf("File not found\n");
+        return 1;
+    }
+
+    yylex();
+    fclose(yyin);
+    return 0;
+}
+[24bcs049@mepcolinux ex1.l]$./date
+15,aug,2026
+
+23,jul,2026
+
+01,jan,2025
+
+12,dec,2024
+
+30,apr,2023
+
+[24bcs049@mepcolinux ex1.l]$cat palindrome.l
+%{
+#include <stdio.h>
+#include <string.h>
+
+FILE *out;
+int count = 0;
+
+/* Modified function with no return statements */
+void checkAndLogPalindrome(char *str)
+{
+    int i, j;
+    int len = strlen(str);
+    int isPal = 1; // Flag assuming it is a palindrome
+
+    for (i = 0, j = len - 1; i < j; i++, j--)
+    {
+        if (str[i] != str[j])
+        {
+            isPal = 0; // Set flag to false if match fails
+            break;     // Break out of loop immediately
+        }
+    }
+
+    // Process output directly inside the function
+    if (isPal == 1)
+    {
+        fprintf(out, "%s\n", str);
+        count++;
+    }
+}
+%}
+
+%%
+[0-9]+   {
+    // Simply call the processing function directly
+    checkAndLogPalindrome(yytext);
+}
+
+[ \t\n]+      ;
+
+.             ;
+
+%%
+
+int yywrap()
+{
+    return 1;
+}
+
+int main()
+{
+    FILE *in;
+
+    in = fopen("palin.txt", "r");
+    if (in == NULL)
+    {
+        printf("Cannot open input file\n");
+        return 1;
+    }
+
+    out = fopen("pal.txt", "w");
+    if (out == NULL)
+    {
+        printf("Cannot open output file\n");
+        fclose(in);
+        return 1;
+    }
+
+    yyin = in;
+    yyout = out;
+
+    yylex();
+
+    printf("Number of palindrome strings = %d\n", count);
+
+    fclose(in);
+    fclose(out);
+
+    return 0;
+}
+[24bcs049@mepcolinux ex1.l]$./palindrome
+Number of palindrome strings = 2
+[24bcs049@mepcolinux ex1.l]$cat long.l
+%{
+#include <stdio.h>
+#include <string.h>
+
+int max = 0;
+char longest[100][100];
+int count = 0;
+%}
+
+%%
+
+[a-zA-Z][a-zA-Z0-9]*   {
+    int len = strlen(yytext);
+
+    if (len > max)
+    {
+        max = len;
+        count = 0;
+        // Check array bounds to prevent memory crashing
+        if (count < 100) {
+            strcpy(longest[count], yytext);
+            count++;
+        }
+    }
+    else if (len == max)
+    {
+        if (count < 100) {
+            strcpy(longest[count], yytext);
+            count++;
+        }
+    }
+}
+
+[ \t\n]+    ;
+
+.           ;
+
+%%
+
+int yywrap()
+{
+    return 1;
+}
+
+int main()
+{
+    int i;
+
+    yyin = fopen("long.txt", "r");
+    if (yyin == NULL)
+    {
+        printf("Cannot open input file\n");
+        return 1;
+    }
+
+    yylex();
+
+    printf("Longest string length = %d\n", max);
+    printf("The longest string is ");
+    for (i = 0; i < count; i++)
+    {
+        printf("%s\n", longest[i]);
+    }
+
+    fclose(yyin);
+    return 0;
+}
+[24bcs049@mepcolinux ex1.l]$./long
+Longest string length = 14
+The longest string is amamnnnnnnndfg
+ret45655yry56t
+[24bcs049@mepcolinux ex1.l]$cat password.l
+%{
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+%}
+
+%%
+
+[a-zA-Z][a-zA-Z0-9&@$_\-]* {
+    int i;
+    int len = strlen(yytext);
+    int upper = 0, lower = 0, digit = 0, special = 0;
+    int valid = 1;
+
+    if (len < 8) {
+        printf("Invalid password: Length should be at least 8.\n");
+        valid = 0;
+    }
+    if (len > 64) {
+        printf("Invalid Password: Length should not exceed 64.\n");
+        valid = 0;
+    }
+
+    for (i = 0; i < len; i++) {
+        if (isupper(yytext[i])) {
+            upper = 1;
+        }
+        if (islower(yytext[i])) {
+            lower = 1;
+        }
+        if (isdigit(yytext[i])) {
+            digit = 1;
+        }
+        if (yytext[i] == '&' || yytext[i] == '@' || yytext[i] == '$' || yytext[i] == '-' || yytext[i] == '_') {
+            special = 1;
+        }
+    }
+
+    if (!upper) {
+        printf("Invalid: No uppercase letter\n");
+        valid = 0;
+    }
+    if (!lower) {
+        printf("Invalid: No lowercase letter\n");
+        valid = 0;
+    }
+    if (!digit) {
+        printf("Invalid: No digit\n");
+        valid = 0;
+    }
+    if (!special) {
+        printf("Invalid: No special character available\n");
+        valid = 0;
+    }
+
+    if (valid) {
+        printf("Valid Password\n");
+        return 0;  /* ADDED: This terminates the scanner instantly on success */
+    }
+}
+
+[^ \t\n]+ {
+    printf("Invalid Password: Should start with an alphabet and contain only valid characters.\n");
+}
+
+[ \t\n]+ ;
+
+%%
+
+int yywrap() {
+    return 1;
+}
+
+int main() {
+    printf("Enter Password: ");
+    yylex();
+    return 0;
+}
+[24bcs049@mepcolinux ex1.l]$./password
+Enter Password: kabes
+Invalid password: Length should be at least 8.
+Invalid: No uppercase letter
+Invalid: No digit
+Invalid: No special character available
+Kabes
+Invalid password: Length should be at least 8.
+Invalid: No digit
+Invalid: No special character available
+Kabes123
+Invalid: No special character available
+Kabes&123
+Valid Password
+[24bcs049@mepcolinux ex1.l]$exit
+exit
+
+Script done on Thu Aug 13 11:39:52 2026
+
